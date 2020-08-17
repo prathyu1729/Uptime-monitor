@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 	"uptime/db"
 
@@ -28,7 +27,7 @@ func string_to_int(input string) int {
 
 }
 
-var m sync.Mutex
+//var m sync.Mutex
 
 func monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 	id := int(url.ID)
@@ -99,7 +98,7 @@ func main() {
 		record := db.UrlInfo{Url: url, Crawl_timeout: crawl_timeout, Frequency: frequency, Failure_threshold: failure_threshold, Status: "active", Failure_count: 0}
 		record = db.Inserturl(record)
 		id := int(record.ID)
-		m[id] = channels{quit: make(chan bool), data: make(chan db.Update)}
+		m[id] = channels{quit: make(chan bool, 1), data: make(chan db.Update, 1)}
 		go monitor(record, m[id].quit, m[id].data)
 		c.JSON(200, gin.H{
 			"url": url,
@@ -183,7 +182,7 @@ func main() {
 	for _, url := range urls {
 		id := int(url.ID)
 		fmt.Printf("here:%d\n", id)
-		m[id] = channels{quit: make(chan bool), data: make(chan db.Update)}
+		m[id] = channels{quit: make(chan bool, 1), data: make(chan db.Update, 1)}
 		go monitor(url, m[id].quit, m[id].data)
 
 	}
