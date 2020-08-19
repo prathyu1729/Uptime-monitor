@@ -13,6 +13,8 @@ import (
 // 	UpdatedAt time.Time
 // 	DeletedAt *time.Time `sql:"index"`
 // }
+var db *gorm.DB
+
 type UrlInfo struct {
 	gorm.Model
 	Url               string
@@ -30,6 +32,19 @@ type Update struct {
 	Failure_threshold int
 }
 
+type Dbinteraction interface {
+	Deleteurl(id int) error
+	Activateurl(id int) error
+	Deactivateurl(id int) error
+	Updateurl(input Update) UrlInfo
+	Updatefailure(id int, count int)
+	Geturl(id int) (UrlInfo, error)
+	Getallurl() []UrlInfo
+	Getactiveurls() []UrlInfo
+	Inserturl(record UrlInfo) UrlInfo
+	Connect() error
+}
+
 func Deleteurl(id int) error {
 	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
 	if err != nil {
@@ -44,6 +59,7 @@ func Deleteurl(id int) error {
 	db.Delete(&info)
 	return nil
 }
+
 func Activateurl(id int) error {
 	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
 	if err != nil {
@@ -76,7 +92,7 @@ func Deactivateurl(id int) error {
 
 }
 
-func Updateurl(input Update) {
+func Updateurl(input Update) UrlInfo {
 	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
 	if err != nil {
 		panic("Could not connect to database")
@@ -95,6 +111,8 @@ func Updateurl(input Update) {
 		db.Model(&info).Update("Failure_threshold", input.Failure_threshold)
 	}
 	db.Model(&info).Update("Failure_count", 0)
+
+	return info
 
 }
 
@@ -161,7 +179,8 @@ func Inserturl(record UrlInfo) UrlInfo {
 }
 
 func Connect() error {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
+	var err error
+	db, err = gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
 	defer db.Close()
 	db.AutoMigrate(&UrlInfo{})
 	return err
