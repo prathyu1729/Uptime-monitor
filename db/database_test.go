@@ -48,7 +48,7 @@ func TestInit(t *testing.T) {
 
 func (s *Suite) TestGeturl() {
 	var (
-		id                = int(1)
+		id                = "1"
 		Url               = "abc.com"
 		Crawl_timeout     = 10
 		Frequency         = 20

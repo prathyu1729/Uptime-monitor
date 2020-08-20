@@ -37,8 +37,9 @@ func string_to_int(input string) int {
 }
 
 func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
-	id := int(url.ID)
-	fmt.Printf("%d created\n", id)
+	website := url.Url
+	id := url.ID
+	fmt.Printf("Monitor for %s created\n", website)
 	timeout := time.Duration(url.Crawl_timeout) * time.Second
 	client := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
 	ticker := time.NewTicker(time.Duration(url.Frequency) * time.Second)
@@ -52,7 +53,7 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 			return
 		case url_new := <-data:
 			fmt.Printf("data received %d", url_new.Failure_threshold)
-			id = int(url_new.Id)
+			id = url_new.Id
 			if url_new.Crawl_timeout != -1 {
 				timeout = time.Duration(url_new.Crawl_timeout) * time.Second
 				client = httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
@@ -66,11 +67,11 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 			failure_count = 0
 
 		case t := <-ticker.C:
-			fmt.Printf("%d ", id)
+			fmt.Printf("%s ", website)
 			fmt.Println("monitoring at:", t)
 			res, err := client.Get(url.Url, nil)
 			if err != nil || res.Status != "200 OK" {
-				fmt.Printf("%d failure\n", id)
+				fmt.Printf("%s failure\n", website)
 				failure_count++
 				dbUpdatefailure(id, failure_count)
 				if failure_count >= threshold {
@@ -79,7 +80,7 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 				}
 
 			} else {
-				fmt.Printf("%d success\n", id)
+				fmt.Printf("%s success\n", website)
 			}
 
 		}
@@ -87,7 +88,7 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 
 }
 
-func Posturl(m map[int]Channels) func(*gin.Context) {
+func Posturl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
 		url := c.PostForm("url")
@@ -96,7 +97,7 @@ func Posturl(m map[int]Channels) func(*gin.Context) {
 		failure_threshold, _ := strconv.Atoi(c.PostForm("failure_threshold"))
 		record := db.UrlInfo{Url: url, Crawl_timeout: crawl_timeout, Frequency: frequency, Failure_threshold: failure_threshold, Status: "active", Failure_count: 0}
 		record = dbInserturl(record)
-		id := int(record.ID)
+		id := record.ID
 		m[id] = Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
 		go Monitor(record, m[id].Quit, m[id].Data)
 		c.JSON(200, gin.H{
@@ -108,7 +109,7 @@ func Posturl(m map[int]Channels) func(*gin.Context) {
 func Geturlbyid() func(*gin.Context) {
 	return func(c *gin.Context) {
 
-		id, _ := strconv.Atoi(c.Param("id"))
+		id := c.Param("id")
 		record, err := dbGeturl(id)
 		_ = record
 		if err != nil {
@@ -125,10 +126,10 @@ func Geturlbyid() func(*gin.Context) {
 
 }
 
-func Deleteurl(m map[int]Channels) func(*gin.Context) {
+func Deleteurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
-		id, _ := strconv.Atoi(c.Param("id"))
+		id := c.Param("id")
 		err := dbDeleteurl(id)
 		_ = err
 		m[id].Quit <- true
@@ -137,10 +138,10 @@ func Deleteurl(m map[int]Channels) func(*gin.Context) {
 
 }
 
-func Patchurl(m map[int]Channels) func(*gin.Context) {
+func Patchurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
-		id, _ := strconv.Atoi(c.Param("id"))
+		id := c.Param("id")
 		crawl_timeout := string_to_int(c.PostForm("crawl_timeout"))
 		frequency := string_to_int(c.PostForm("frequency"))
 		failure_threshold := string_to_int(c.PostForm("failure_threshold"))
@@ -160,9 +161,9 @@ func Patchurl(m map[int]Channels) func(*gin.Context) {
 
 }
 
-func Activateurl(m map[int]Channels) func(*gin.Context) {
+func Activateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
-		id, _ := strconv.Atoi(c.Param("id"))
+		id := c.Param("id")
 		err := dbActivateurl(id)
 		if err != nil {
 			c.JSON(200, gin.H{
@@ -179,9 +180,9 @@ func Activateurl(m map[int]Channels) func(*gin.Context) {
 	}
 }
 
-func Deactivateurl(m map[int]Channels) func(*gin.Context) {
+func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
-		id, _ := strconv.Atoi(c.Param("id"))
+		id := c.Param("id")
 		err := dbDeactivateurl(id)
 		if err != nil {
 			c.JSON(200, gin.H{

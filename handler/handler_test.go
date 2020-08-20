@@ -15,8 +15,8 @@ import (
 
 func server() *gin.Engine {
 	r := gin.Default()
-	m := make(map[int]Channels)
-	m[2] = Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
+	m := make(map[string]Channels)
+	m["2"] = Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
 	r.POST("/urls/", Posturl(m))
 	r.PATCH("/urls/:id", Patchurl(m))
 	r.GET("/urls/:id", Geturlbyid())
@@ -35,7 +35,7 @@ func performRequest(r http.Handler, method, path string, body io.Reader) *httpte
 }
 
 func TestDeactivateurl(t *testing.T) {
-	dbDeactivateurl = func(id int) error {
+	dbDeactivateurl = func(id string) error {
 		return nil
 	}
 	router := server()
@@ -45,14 +45,14 @@ func TestDeactivateurl(t *testing.T) {
 }
 
 func TestActivateurl(t *testing.T) {
-	dbActivateurl = func(id int) error {
+	dbActivateurl = func(id string) error {
 		return nil
 
 	}
 
-	dbGeturl = func(i int) (db.UrlInfo, error) {
+	dbGeturl = func(i string) (db.UrlInfo, error) {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
-		record.ID = uint(i)
+		record.ID = i
 		return record, nil
 	}
 
@@ -63,7 +63,7 @@ func TestActivateurl(t *testing.T) {
 
 func TestDeleteurl(t *testing.T) {
 
-	dbDeleteurl = func(id int) error {
+	dbDeleteurl = func(id string) error {
 		_ = id
 		return nil
 	}
@@ -77,7 +77,7 @@ func TestPosturl(t *testing.T) {
 
 	dbInserturl = func(r db.UrlInfo) db.UrlInfo {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
-		record.ID = 1
+		record.ID = "1"
 		return record
 
 	}
@@ -99,9 +99,9 @@ func TestPosturl(t *testing.T) {
 
 func TestGeturlbyid(t *testing.T) {
 
-	dbGeturl = func(i int) (db.UrlInfo, error) {
+	dbGeturl = func(i string) (db.UrlInfo, error) {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
-		record.ID = uint(i)
+		record.ID = i
 		return record, nil
 	}
 	router := server()
@@ -120,7 +120,7 @@ func TestPatchurl(t *testing.T) {
 
 	dbUpdateurl = func(input db.Update) db.UrlInfo {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: input.Crawl_timeout, Frequency: input.Frequency, Failure_threshold: input.Failure_threshold, Status: "active", Failure_count: 0}
-		record.ID = uint(input.Id)
+		record.ID = input.Id
 		return record
 	}
 
@@ -138,7 +138,7 @@ func TestPatchurl(t *testing.T) {
 	failure_count := response.Failure_count
 	failure_threshold := response.Failure_threshold
 	assert.Nil(t, err)
-	assert.Equal(t, 2, int(id))
+	assert.Equal(t, "2", id)
 	assert.Equal(t, "abc.com", url)
 	assert.Equal(t, 10, crawl_timeout)
 	assert.Equal(t, 15, frequency)

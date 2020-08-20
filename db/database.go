@@ -2,31 +2,33 @@ package db
 
 import (
 	"errors"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	uuid "github.com/satori/go.uuid"
 )
 
-// type Base struct {
-// 	ID        string `gorm:"type:uuid;primary_key;"`
-// 	CreatedAt time.Time
-// 	UpdatedAt time.Time
-// 	DeletedAt *time.Time `sql:"index"`
-// }
+type Base struct {
+	ID        string `gorm:"type:uuid;primary_key;"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time `sql:"index"`
+}
 
-// func (base *Base) BeforeCreate(scope *gorm.Scope) error {
-// 	uuid, err := uuid.NewV4()
-// 	uuids := uuid.String()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return scope.SetColumn("ID", uuids)
-// }
+func (base *UrlInfo) BeforeCreate(scope *gorm.Scope) error {
+	uuid, err := uuid.NewV4()
+	uuids := uuid.String()
+	if err != nil {
+		return err
+	}
+	return scope.SetColumn("ID", uuids)
+}
 
 var db *gorm.DB
 
 type UrlInfo struct {
-	gorm.Model
+	ID                string `gorm:"type:char(36);primary_key;"`
 	Url               string
 	Crawl_timeout     int
 	Frequency         int
@@ -36,19 +38,19 @@ type UrlInfo struct {
 }
 
 type Update struct {
-	Id                int
+	Id                string
 	Crawl_timeout     int
 	Frequency         int
 	Failure_threshold int
 }
 
 type Dbinteraction interface {
-	Deleteurl(id int) error
-	Activateurl(id int) error
-	Deactivateurl(id int) error
+	Deleteurl(id string) error
+	Activateurl(id string) error
+	Deactivateurl(id string) error
 	Updateurl(input Update) UrlInfo
-	Updatefailure(id int, count int)
-	Geturl(id int) (UrlInfo, error)
+	Updatefailure(id string, count int)
+	Geturl(id string) (UrlInfo, error)
 	Getallurl() []UrlInfo
 	Getactiveurls() []UrlInfo
 	Inserturl(record UrlInfo) UrlInfo
@@ -61,14 +63,14 @@ type Caller struct {
 
 //	var info UrlInfo
 //err := c.Db.Where("id = ?", id).Find(&info).Error
-func (c *Caller) Deleteurl(id int) error {
+func (c *Caller) Deleteurl(id string) error {
 	var info UrlInfo
 	err := c.Db.Where("id = ?", id).Find(&info).Error
 	c.Db.Delete(&info)
 	return err
 }
 
-func (c *Caller) Activateurl(id int) error {
+func (c *Caller) Activateurl(id string) error {
 	var info UrlInfo
 	err := c.Db.Where("id = ?", id).Find(&info).Error
 	if err != nil {
@@ -82,9 +84,10 @@ func (c *Caller) Activateurl(id int) error {
 	return nil
 }
 
-func (c *Caller) Deactivateurl(id int) error {
+func (c *Caller) Deactivateurl(id string) error {
 	var info UrlInfo
-	c.Db.Take(&info, id)
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	_ = err
 	if info.Status == "inactive" {
 		return errors.New("url already inactive")
 	}
@@ -96,7 +99,9 @@ func (c *Caller) Deactivateurl(id int) error {
 func (c *Caller) Updateurl(input Update) UrlInfo {
 	var info UrlInfo
 	id := input.Id
-	c.Db.Take(&info, id)
+
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	_ = err
 	if input.Crawl_timeout != -1 {
 		c.Db.Model(&info).Update("Crawl_timeout", input.Crawl_timeout)
 	}
@@ -112,9 +117,10 @@ func (c *Caller) Updateurl(input Update) UrlInfo {
 
 }
 
-func (c *Caller) Updatefailure(id int, count int) {
+func (c *Caller) Updatefailure(id string, count int) {
 	var info UrlInfo
-	c.Db.Take(&info, id)
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	_ = err
 	c.Db.Model(&info).Update("Failure_count", count)
 
 }
@@ -130,7 +136,7 @@ func (c *Caller) Updatefailure(id int, count int) {
 // 	//err := c.Db.Where("id = ?", id).Find(info).Error
 // }
 
-func (c *Caller) Geturl(id int) (UrlInfo, error) {
+func (c *Caller) Geturl(id string) (UrlInfo, error) {
 	var info UrlInfo
 	err := c.Db.Where("id = ?", id).Find(&info).Error
 	return info, err

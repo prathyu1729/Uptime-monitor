@@ -53,7 +53,7 @@ func main() {
 	handler.Connecttodb()
 
 	r := setupserver()
-	m := make(map[int]handler.Channels)
+	m := make(map[string]handler.Channels)
 
 	//api related functions
 	r.POST("/urls/", handler.Posturl(m))
@@ -166,7 +166,7 @@ func main() {
 	//checking if data already exists in db
 	urls := handler.Getactiveurls()
 	for _, url := range urls {
-		id := int(url.ID)
+		id := url.ID
 		m[id] = handler.Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
 		go handler.Monitor(url, m[id].Quit, m[id].Data)
 
