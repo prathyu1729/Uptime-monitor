@@ -155,6 +155,12 @@ func main() {
 	auth.Use(authMiddleware.MiddlewareFunc())
 	{
 		auth.GET("/hello", helloHandler)
+		auth.POST("/urls/", handler.Posturl(m))
+		auth.GET("/urls/:id", handler.Geturlbyid())
+		auth.DELETE("/urls/:id", handler.Deleteurl(m))
+		auth.PATCH("/urls/:id", handler.Patchurl(m))
+		auth.POST("/urls/:id/activate", handler.Activateurl(m))
+		auth.POST("/urls/:id/deactivate", handler.Deactivateurl(m))
 	}
 
 	//checking if data already exists in db
