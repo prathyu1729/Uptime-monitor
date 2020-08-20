@@ -16,12 +16,14 @@ type Channels struct {
 }
 
 var (
-	dbGeturl        = db.Geturl
-	dbInserturl     = db.Inserturl
-	dbDeleteurl     = db.Deleteurl
-	dbUpdateurl     = db.Updateurl
-	dbActivateurl   = db.Activateurl
-	dbDeactivateurl = db.Deactivateurl
+	c               = db.Caller{}
+	dbGeturl        = c.Geturl
+	dbInserturl     = c.Inserturl
+	dbDeleteurl     = c.Deleteurl
+	dbUpdateurl     = c.Updateurl
+	dbActivateurl   = c.Activateurl
+	dbDeactivateurl = c.Deactivateurl
+	dbUpdatefailure = c.Updatefailure
 )
 
 func string_to_int(input string) int {
@@ -70,9 +72,9 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 			if err != nil || res.Status != "200 OK" {
 				fmt.Printf("%d failure\n", id)
 				failure_count++
-				db.Updatefailure(id, failure_count)
+				dbUpdatefailure(id, failure_count)
 				if failure_count >= threshold {
-					_ = db.Deactivateurl(id)
+					_ = dbDeactivateurl(id)
 					return
 				}
 
@@ -127,7 +129,7 @@ func Deleteurl(m map[int]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
 		id, _ := strconv.Atoi(c.Param("id"))
-		err := db.Deleteurl(id)
+		err := dbDeleteurl(id)
 		_ = err
 		m[id].Quit <- true
 		c.String(204, "success")
@@ -194,4 +196,19 @@ func Deactivateurl(m map[int]Channels) func(*gin.Context) {
 
 	}
 
+}
+
+func Getactiveurls() []db.UrlInfo {
+	urls := c.Getactiveurls()
+	return urls
+}
+
+func Connecttodb() {
+	err := c.Connect()
+	_ = err
+}
+
+func Closedb() {
+
+	c.Db.Close()
 }

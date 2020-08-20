@@ -8,11 +8,12 @@ import (
 )
 
 // type Model struct {
-// 	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
+// 	ID        uint
 // 	CreatedAt time.Time
 // 	UpdatedAt time.Time
 // 	DeletedAt *time.Time `sql:"index"`
 // }
+
 var db *gorm.DB
 
 type UrlInfo struct {
@@ -45,143 +46,116 @@ type Dbinteraction interface {
 	Connect() error
 }
 
-func Deleteurl(id int) error {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
-	var info UrlInfo
-	db.Take(&info, id)
-	// if info.Url == nil {
-	// 	return errors.New("record does not exist")
-	// }
-	db.Delete(&info)
-	return nil
+type Caller struct {
+	Db *gorm.DB
 }
 
-func Activateurl(id int) error {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+//	var info UrlInfo
+//err := c.Db.Where("id = ?", id).Find(&info).Error
+func (c *Caller) Deleteurl(id int) error {
 	var info UrlInfo
-	db.Take(&info, id)
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	c.Db.Delete(&info)
+	return err
+}
+
+func (c *Caller) Activateurl(id int) error {
+	var info UrlInfo
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	if err != nil {
+		return err
+	}
 	if info.Status == "active" {
 		return errors.New("url already active")
 	}
-	db.Model(&info).Update("Status", "active")
-	db.Model(&info).Update("Failure_count", 0)
+	c.Db.Model(&info).Update("Status", "active")
+	c.Db.Model(&info).Update("Failure_count", 0)
 	return nil
 }
 
-func Deactivateurl(id int) error {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+func (c *Caller) Deactivateurl(id int) error {
 	var info UrlInfo
-	db.Take(&info, id)
+	c.Db.Take(&info, id)
 	if info.Status == "inactive" {
 		return errors.New("url already inactive")
 	}
-	db.Model(&info).Update("Status", "inactive")
+	c.Db.Model(&info).Update("Status", "inactive")
 	return nil
 
 }
 
-func Updateurl(input Update) UrlInfo {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+func (c *Caller) Updateurl(input Update) UrlInfo {
 	var info UrlInfo
 	id := input.Id
-	db.Take(&info, id)
+	c.Db.Take(&info, id)
 	if input.Crawl_timeout != -1 {
-		db.Model(&info).Update("Crawl_timeout", input.Crawl_timeout)
+		c.Db.Model(&info).Update("Crawl_timeout", input.Crawl_timeout)
 	}
 	if input.Frequency != -1 {
-		db.Model(&info).Update("Frequency", input.Frequency)
+		c.Db.Model(&info).Update("Frequency", input.Frequency)
 	}
 	if input.Failure_threshold != -1 {
-		db.Model(&info).Update("Failure_threshold", input.Failure_threshold)
+		c.Db.Model(&info).Update("Failure_threshold", input.Failure_threshold)
 	}
-	db.Model(&info).Update("Failure_count", 0)
+	c.Db.Model(&info).Update("Failure_count", 0)
 
 	return info
 
 }
 
-func Updatefailure(id int, count int) {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+func (c *Caller) Updatefailure(id int, count int) {
 	var info UrlInfo
-	db.Take(&info, id)
-	db.Model(&info).Update("Failure_count", count)
+	c.Db.Take(&info, id)
+	c.Db.Model(&info).Update("Failure_count", count)
 
 }
 
-func Geturl(id int) (UrlInfo, error) {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+// func (c *Caller) Geturl(id int) (UrlInfo, error) {
+// 	var info UrlInfo
+// 	c.Db.First(&info, id)
+// 	if info.ID == 0 {
+// 		err := errors.New("record does not exist")
+// 		return UrlInfo{}, err
+// 	}
+// 	return info, nil
+// 	//err := c.Db.Where("id = ?", id).Find(info).Error
+// }
+
+func (c *Caller) Geturl(id int) (UrlInfo, error) {
 	var info UrlInfo
-	db.Take(&info, id)
-	if info.ID == 0 {
-		err := errors.New("record does not exist")
-		return UrlInfo{}, err
-	}
-	return info, nil
+	err := c.Db.Where("id = ?", id).Find(&info).Error
+	return info, err
 }
 
-func Getallurl() []UrlInfo {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+func (c *Caller) Getallurl() []UrlInfo {
 	var urls []UrlInfo
-	db.Find(&urls)
+	c.Db.Find(&urls)
 	return urls
 }
 
-func Getactiveurls() []UrlInfo {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
+func (c *Caller) Getactiveurls() []UrlInfo {
 	var urls []UrlInfo
-	db.Find(&urls, "status = ?", "active")
+	c.Db.Find(&urls, "status = ?", "active")
 	return urls
 }
 
-func Inserturl(record UrlInfo) UrlInfo {
-	db, err := gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	if err != nil {
-		panic("Could not connect to database")
-	}
-	defer db.Close()
-	db.Create(&record)
+func (c *Caller) Inserturl(record UrlInfo) UrlInfo {
+	c.Db.Create(&record)
 	var url UrlInfo
-	db.Last(&url)
+	c.Db.Last(&url)
 	return url
 
 }
 
-func Connect() error {
+func (c *Caller) Connect() error {
 	var err error
-	db, err = gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
-	defer db.Close()
-	db.AutoMigrate(&UrlInfo{})
+	c.Db, err = gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
+	c.Db.AutoMigrate(&UrlInfo{})
 	return err
+}
+
+func CreateInteractor(db *gorm.DB) Dbinteraction {
+	return &Caller{
+		Db: db,
+	}
 }
