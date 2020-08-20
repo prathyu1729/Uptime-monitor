@@ -75,10 +75,10 @@ func TestDeleteurl(t *testing.T) {
 
 func TestPosturl(t *testing.T) {
 
-	dbInserturl = func(r db.UrlInfo) db.UrlInfo {
+	dbInserturl = func(r db.UrlInfo) (db.UrlInfo, error) {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
 		record.ID = "1"
-		return record
+		return record, nil
 
 	}
 	body := gin.H{
@@ -88,11 +88,11 @@ func TestPosturl(t *testing.T) {
 	router := server()
 	w := performRequest(router, "POST", "/urls/", content)
 	assert.Equal(t, http.StatusOK, w.Code)
-	var response map[string]string
+	var response db.UrlInfo
 	err := json.Unmarshal([]byte(w.Body.String()), &response)
-	value, exists := response["url"]
+	value := response.Url
 	assert.Nil(t, err)
-	assert.True(t, exists)
+	//assert.True(t, exists)
 	assert.Equal(t, body["url"], value)
 
 }
@@ -107,21 +107,20 @@ func TestGeturlbyid(t *testing.T) {
 	router := server()
 	w := performRequest(router, "GET", "/urls/1", nil)
 	assert.Equal(t, http.StatusOK, w.Code)
-	var response map[string]int
+	var response db.UrlInfo
 	err := json.Unmarshal([]byte(w.Body.String()), &response)
-	value, exists := response["id"]
+	value := response.ID
 	assert.Nil(t, err)
-	assert.True(t, exists)
-	assert.Equal(t, 1, value)
+	assert.Equal(t, "1", value)
 
 }
 
 func TestPatchurl(t *testing.T) {
 
-	dbUpdateurl = func(input db.Update) db.UrlInfo {
+	dbUpdateurl = func(input db.Update) (db.UrlInfo, error) {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: input.Crawl_timeout, Frequency: input.Frequency, Failure_threshold: input.Failure_threshold, Status: "active", Failure_count: 0}
 		record.ID = input.Id
-		return record
+		return record, nil
 	}
 
 	router := server()

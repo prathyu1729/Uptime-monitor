@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 	"uptime/db"
 
@@ -16,6 +17,7 @@ type Channels struct {
 }
 
 var (
+	mu              = &sync.Mutex{}
 	c               = db.Caller{}
 	dbGeturl        = c.Geturl
 	dbInserturl     = c.Inserturl
@@ -89,20 +91,38 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 }
 
 func Posturl(m map[string]Channels) func(*gin.Context) {
-	return func(c *gin.Context) {
 
+	return func(c *gin.Context) {
+		var err error
 		url := c.PostForm("url")
 		crawl_timeout, _ := strconv.Atoi(c.PostForm("crawl_timeout"))
 		frequency, _ := strconv.Atoi(c.PostForm("frequency"))
 		failure_threshold, _ := strconv.Atoi(c.PostForm("failure_threshold"))
 		record := db.UrlInfo{Url: url, Crawl_timeout: crawl_timeout, Frequency: frequency, Failure_threshold: failure_threshold, Status: "active", Failure_count: 0}
-		record = dbInserturl(record)
-		id := record.ID
-		m[id] = Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
-		go Monitor(record, m[id].Quit, m[id].Data)
-		c.JSON(200, gin.H{
-			"url": url,
-		})
+
+		mu.Lock()
+		record, err = dbInserturl(record)
+		mu.Unlock()
+		if err != nil {
+			c.JSON(200, gin.H{
+				"error": "url already exists",
+			})
+		} else {
+			id := record.ID
+			mu.Lock()
+			m[id] = Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
+			mu.Unlock()
+			go Monitor(record, m[id].Quit, m[id].Data)
+			c.JSON(200, gin.H{
+				"Id":                id,
+				"Url":               record.Url,
+				"Crawl_timeout":     record.Crawl_timeout,
+				"Frequency":         record.Frequency,
+				"Failure_threshold": record.Failure_threshold,
+				"Status":            record.Status,
+				"Failure_count":     record.Failure_count,
+			})
+		}
 	}
 }
 
@@ -111,15 +131,19 @@ func Geturlbyid() func(*gin.Context) {
 
 		id := c.Param("id")
 		record, err := dbGeturl(id)
-		_ = record
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(400, gin.H{
 				"message": "record does not exist",
 			})
 		} else {
 			c.JSON(200, gin.H{
-				"id": id,
-				//"url": record.Url,
+				"Id":                id,
+				"Url":               record.Url,
+				"Crawl_timeout":     record.Crawl_timeout,
+				"Frequency":         record.Frequency,
+				"Failure_threshold": record.Failure_threshold,
+				"Status":            record.Status,
+				"Failure_count":     record.Failure_count,
 			})
 		}
 	}
@@ -130,9 +154,15 @@ func Deleteurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
 		id := c.Param("id")
+		mu.Lock()
 		err := dbDeleteurl(id)
-		_ = err
+		mu.Unlock()
+		if err != nil {
+			c.String(400, "")
+		}
+		mu.Lock()
 		m[id].Quit <- true
+		mu.Unlock()
 		c.String(204, "success")
 	}
 
@@ -146,14 +176,23 @@ func Patchurl(m map[string]Channels) func(*gin.Context) {
 		frequency := string_to_int(c.PostForm("frequency"))
 		failure_threshold := string_to_int(c.PostForm("failure_threshold"))
 		input := db.Update{Id: id, Crawl_timeout: crawl_timeout, Frequency: frequency, Failure_threshold: failure_threshold}
-		record := dbUpdateurl(input)
+		mu.Lock()
+		record, err := dbUpdateurl(input)
+		mu.Unlock()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": "Could not update database",
+			})
+		}
+		mu.Lock()
 		m[id].Data <- input
+		mu.Unlock()
 		c.JSON(200, gin.H{
-			"ID":                id,
+			"Id":                id,
 			"Url":               record.Url,
-			"Crawl_timeout":     crawl_timeout,
-			"Frequency":         frequency,
-			"Failure_threshold": failure_threshold,
+			"Crawl_timeout":     record.Crawl_timeout,
+			"Frequency":         record.Frequency,
+			"Failure_threshold": record.Failure_threshold,
 			"Status":            record.Status,
 			"Failure_count":     record.Failure_count,
 		})
@@ -164,13 +203,17 @@ func Patchurl(m map[string]Channels) func(*gin.Context) {
 func Activateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
+		mu.Lock()
 		err := dbActivateurl(id)
+		mu.Unlock()
 		if err != nil {
-			c.JSON(200, gin.H{
+			c.JSON(400, gin.H{
 				"error": "url already active",
 			})
 		} else {
+			mu.Lock()
 			record, _ := dbGeturl(id)
+			mu.Unlock()
 			record.Failure_count = 0
 			go Monitor(record, m[id].Quit, m[id].Data)
 			c.JSON(200, gin.H{
@@ -183,13 +226,17 @@ func Activateurl(m map[string]Channels) func(*gin.Context) {
 func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
+		mu.Lock()
 		err := dbDeactivateurl(id)
+		mu.Unlock()
 		if err != nil {
-			c.JSON(200, gin.H{
+			c.JSON(400, gin.H{
 				"error": "url already inactive",
 			})
 		} else {
+			mu.Lock()
 			m[id].Quit <- true
+			mu.Unlock()
 			c.JSON(200, gin.H{
 				"message": "update successful",
 			})
