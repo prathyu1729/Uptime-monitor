@@ -31,16 +31,6 @@ type login struct {
 
 var identityKey = "id"
 
-func helloHandler(c *gin.Context) {
-	claims := jwt.ExtractClaims(c)
-	user, _ := c.Get(identityKey)
-	c.JSON(200, gin.H{
-		"userID":   claims[identityKey],
-		"userName": user.(*User).UserName,
-		"text":     "Hello World.",
-	})
-}
-
 // User demo
 type User struct {
 	UserName  string
@@ -157,7 +147,6 @@ func main() {
 	auth.GET("/refresh_token", authMiddleware.RefreshHandler)
 	auth.Use(authMiddleware.MiddlewareFunc())
 	{
-		auth.GET("/hello", helloHandler)
 		auth.POST("/urls/", handler.Posturl(m))
 		auth.GET("/urls/:id", handler.Geturlbyid())
 		auth.DELETE("/urls/:id", handler.Deleteurl(m))
