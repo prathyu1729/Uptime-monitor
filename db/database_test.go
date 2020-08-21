@@ -56,9 +56,9 @@ func (s *Suite) TestGeturl() {
 		Status            = "active"
 		Failure_count     = 0
 	)
-	//s.SetupSuite()
+
 	s.mock.ExpectQuery(regexp.QuoteMeta(
-		"SELECT * FROM `url_infos` WHERE  `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
+		"SELECT * FROM `url_infos` WHERE (id = ?)")).
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
 			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
@@ -69,29 +69,29 @@ func (s *Suite) TestGeturl() {
 	require.Nil(s.T(), deep.Equal(Url, res.Url))
 }
 
-// func (s *Suite) TestPosturl() {
-// 	var (
-// 		id                = int(1)
-// 		Url               = "abc.com"
-// 		Crawl_timeout     = 10
-// 		Frequency         = 20
-// 		Failure_threshold = 3
-// 		Status            = "active"
-// 		Failure_count     = 0
-// 	)
-// 	//s.SetupSuite()
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"SELECT * FROM `url_infos` WHERE  `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
-// 		WithArgs(id).
-// 		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
+func (s *Suite) TestPosturl() {
+	var (
+		id                = "1"
+		Url               = "abc.com"
+		Crawl_timeout     = 10
+		Frequency         = 20
+		Failure_threshold = 3
+		Status            = "active"
+		Failure_count     = 0
+	)
 
-// 	res, err := s.interactor.Geturl(id)
+	s.mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT * FROM `url_infos` WHERE (id = ?)")).
+		WithArgs(id).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
+			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
 
-// 	require.NoError(s.T(), err)
-// 	require.Nil(s.T(), deep.Equal(Url, res.Url))
+	res, err := s.interactor.Geturl(id)
 
-// }
+	require.NoError(s.T(), err)
+	require.Nil(s.T(), deep.Equal(Url, res.Url))
+
+}
 
 // func (s *Suite) TestActivateurl() {
 // 	var (
@@ -135,7 +135,7 @@ func (s *Suite) TestGeturl() {
 // func (s *Suite) TestDeleteurl() {
 
 // 	var (
-// 		id                = int(1)
+// 		id                = "1"
 // 		Url               = "abc.com"
 // 		Crawl_timeout     = 10
 // 		Frequency         = 20
@@ -143,18 +143,22 @@ func (s *Suite) TestGeturl() {
 // 		Status            = "active"
 // 		Failure_count     = 0
 // 	)
+
 // 	//s.SetupSuite()
 // 	rows := sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
 // 		AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count)
+// 	rows1 := sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
+// 		AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count)
 
 // 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"SELECT * FROM `url_infos` WHERE  `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
+// 		"SELECT * FROM `url_infos` WHERE  (id = ?)")).
 // 		WithArgs(id).WillReturnRows(rows)
+
 // 	//AddRow(id, Url, Crawl_timeout, Frequency, Failure_t
 
 // 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"DELETE FROM `url_infos` WHERE  `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
-// 		WithArgs(id).WillReturnRows(rows)
+// 		"DELETE FROM `url_infos` WHERE (id = ?)")).
+// 		WithArgs(id).WillReturnRows(rows1)
 
 // 	//WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
 // 	//AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))

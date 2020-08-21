@@ -53,6 +53,9 @@ func main() {
 	handler.Connecttodb()
 
 	r := setupserver()
+	defer handler.Closedb()
+
+	//map to store the channels for each goroutine to be created with its id as the key
 	m := make(map[string]handler.Channels)
 
 	//api related functions
@@ -66,7 +69,7 @@ func main() {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
-	// the jwt middleware
+	// the jwt middleware for token authentication
 	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "test zone",
 		Key:         []byte("secret key"),
@@ -173,6 +176,5 @@ func main() {
 	}
 	//listening in the port 8080
 	r.Run()
-	handler.Closedb()
 
 }

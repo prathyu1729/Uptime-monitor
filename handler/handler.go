@@ -28,6 +28,7 @@ var (
 	dbUpdatefailure = c.Updatefailure
 )
 
+//function to create string to int, returns -1 for empty strings
 func string_to_int(input string) int {
 	if input == "" {
 		return -1
@@ -38,6 +39,7 @@ func string_to_int(input string) int {
 
 }
 
+//The go routine which will be created every time a new entry comes to the application
 func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 	website := url.Url
 	id := url.ID
@@ -50,11 +52,10 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 	for {
 		select {
 		case <-quit:
-			fmt.Printf("deleting")
+			fmt.Printf("Stoping monitor for %s\n", website)
 			ticker.Stop()
 			return
 		case url_new := <-data:
-			fmt.Printf("data received %d", url_new.Failure_threshold)
 			id = url_new.Id
 			if url_new.Crawl_timeout != -1 {
 				timeout = time.Duration(url_new.Crawl_timeout) * time.Second
@@ -69,20 +70,20 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 			failure_count = 0
 
 		case t := <-ticker.C:
-			fmt.Printf("%s ", website)
-			fmt.Println("monitoring at:", t)
+			fmt.Printf("%s Pinged at %s\n", website, t)
 			res, err := client.Get(url.Url, nil)
 			if err != nil || res.Status != "200 OK" {
-				fmt.Printf("%s failure\n", website)
+				fmt.Printf("%s response failure\n", website)
 				failure_count++
 				dbUpdatefailure(id, failure_count)
 				if failure_count >= threshold {
 					_ = dbDeactivateurl(id)
+					fmt.Printf("Stoping monitor for %s\n", website)
 					return
 				}
 
 			} else {
-				fmt.Printf("%s success\n", website)
+				fmt.Printf("%s response success\n", website)
 			}
 
 		}
@@ -90,6 +91,7 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 
 }
 
+//function to handle inserting new entries to the db
 func Posturl(m map[string]Channels) func(*gin.Context) {
 
 	return func(c *gin.Context) {
@@ -126,6 +128,7 @@ func Posturl(m map[string]Channels) func(*gin.Context) {
 	}
 }
 
+//returns the url record, capturing id path variable from the url
 func Geturlbyid() func(*gin.Context) {
 	return func(c *gin.Context) {
 
@@ -150,6 +153,7 @@ func Geturlbyid() func(*gin.Context) {
 
 }
 
+//handles deletion of an existing url record in db
 func Deleteurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
@@ -168,6 +172,7 @@ func Deleteurl(m map[string]Channels) func(*gin.Context) {
 
 }
 
+//handles updation of fields of url records in db
 func Patchurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
@@ -200,6 +205,7 @@ func Patchurl(m map[string]Channels) func(*gin.Context) {
 
 }
 
+//handler to activate inactive url record
 func Activateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -223,6 +229,7 @@ func Activateurl(m map[string]Channels) func(*gin.Context) {
 	}
 }
 
+//handler to deactivate an active url record
 func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -246,16 +253,19 @@ func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 
 }
 
+//handler that returns all active urls
 func Getactiveurls() []db.UrlInfo {
 	urls := c.Getactiveurls()
 	return urls
 }
 
+//makes connection to the database
 func Connecttodb() {
 	err := c.Connect()
 	_ = err
 }
 
+//closes the database
 func Closedb() {
 
 	c.Db.Close()
