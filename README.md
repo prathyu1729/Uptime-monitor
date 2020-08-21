@@ -18,10 +18,17 @@ go get github.com/satori/go.uuid
     * Install MySQL@5.7 on your machine https://dev.mysql.com/doc/refman/5.7/en/installing.html
     * Create a database named uptime and mention your username and password in Connect() function in database.go
 # Execution
+## Using a local copy
 * Start the server by this command
 ```
 go run main.go
 ```
+## Using docker image
+```
+docker pull prathyu1729/uptime-monitor:init
+docker run --rm -it -p 8080:8080 uptime-monitor
+```
+## Requests
 * The server listens on port 8080.The following requests are expected by the application
 ```
 POST /urls/
