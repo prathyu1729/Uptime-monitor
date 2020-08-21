@@ -31,7 +31,7 @@ type login struct {
 
 var identityKey = "id"
 
-// User demo
+// Not used presently
 type User struct {
 	UserName  string
 	FirstName string
@@ -91,8 +91,8 @@ func main() {
 			if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
 				return &User{
 					UserName:  userID,
-					LastName:  "Bo-Yi",
-					FirstName: "Wu",
+					LastName:  "N P",
+					FirstName: "Prathyush",
 				}, nil
 			}
 
