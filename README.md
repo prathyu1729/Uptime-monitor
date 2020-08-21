@@ -17,3 +17,40 @@ go get github.com/satori/go.uuid
 * Setup mysql 
     * Install MySQL@5.7 on your machine https://dev.mysql.com/doc/refman/5.7/en/installing.html
     * Create a database named uptime and mention your username and password in Connect() function in database.go
+# Execution
+* Start the server by this command
+```
+go run main.go
+```
+* The server listens on port 8080.The following requests are expected by the application
+```
+POST /urls/
+GET /urls/:id
+DELETE /urls/:id
+PATCH /urls/:id
+POST /urls/:id/activate
+POST /urls/:id/deactivate
+
+```
+* The following requests expect token authentication
+```
+POST /login
+GET /auth/refresh_token
+POST /auth/urls/
+GET /auth/urls/:id
+DELETE /auth/urls/:id
+PATCH /auth/urls/:id
+POST /auth/urls/:id/activate
+POST /auth/urls/:id/deactivate
+```
+# Unit testing
+* To run unit tests for http requests
+```
+cd handler/
+go test
+```
+* To run unit tests for database interaction
+```
+cd db/
+go test
+```
