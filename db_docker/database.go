@@ -1,3 +1,4 @@
+//This file is just to enable the execution of docker container
 package db
 
 import (
@@ -161,7 +162,7 @@ func (c *Caller) Inserturl(record UrlInfo) (UrlInfo, error) {
 
 func (c *Caller) Connect() error {
 	var err error
-	c.Db, err = gorm.Open("mysql", "prathyush:prathyush@host.docker.internal:3306/uptime?charset=utf8&parseTime=True&loc=Local")
+	c.Db, err = gorm.Open("mysql", "prathyush:prathyush@(host.docker.internal:3306)/uptime?charset=utf8&parseTime=True&loc=Local")
 	c.Db.AutoMigrate(&UrlInfo{})
 	return err
 }

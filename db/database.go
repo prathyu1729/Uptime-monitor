@@ -161,7 +161,7 @@ func (c *Caller) Inserturl(record UrlInfo) (UrlInfo, error) {
 
 func (c *Caller) Connect() error {
 	var err error
-	c.Db, err = gorm.Open("mysql", "prathyush:prathyush@/uptime?charset=utf8&parseTime=True&loc=Local")
+	c.Db, err = gorm.Open("mysql", "prathyush:prathyush@(localhost:3306)/uptime?charset=utf8&parseTime=True&loc=Local")
 	c.Db.AutoMigrate(&UrlInfo{})
 	return err
 }
