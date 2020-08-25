@@ -17,16 +17,26 @@ type Channels struct {
 }
 
 var (
-	mu              = &sync.Mutex{}
-	c               = db.Caller{}
-	dbGeturl        = c.Geturl
-	dbInserturl     = c.Inserturl
-	dbDeleteurl     = c.Deleteurl
-	dbUpdateurl     = c.Updateurl
-	dbActivateurl   = c.Activateurl
-	dbDeactivateurl = c.Deactivateurl
-	dbUpdatefailure = c.Updatefailure
+	mu                = &sync.Mutex{}
+	c                 = db.Caller{}
+	dbGeturl          = c.Geturl
+	dbInserturl       = c.Inserturl
+	dbDeleteurl       = c.Deleteurl
+	dbUpdatecrawl     = c.Updatecrawl
+	dbUpdatefrequency = c.Updatefrequency
+	dbUpdatethreshold = c.Updatethreshold
+	dbActivateurl     = c.Activateurl
+	dbDeactivateurl   = c.Deactivateurl
+	dbUpdatefailure   = c.Updatefailure
 )
+
+// type sample struct{
+// 	db db.Dbinteraction
+// }
+
+// func newsample(db db.Dbinteraction)*sample{
+// 	return &sample{db:db}
+// }
 
 //function to create string to int, returns -1 for empty strings
 func string_to_int(input string) int {
@@ -44,9 +54,11 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 	website := url.Url
 	id := url.ID
 	fmt.Printf("Monitor for %s created\n", website)
-	timeout := time.Duration(url.Crawl_timeout) * time.Second
+	crawl := url.Crawl_timeout
+	timeout := time.Duration(crawl) * time.Second
 	client := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-	ticker := time.NewTicker(time.Duration(url.Frequency) * time.Second)
+	frequency := url.Frequency
+	ticker := time.NewTicker(time.Duration(frequency) * time.Second)
 	threshold := url.Failure_threshold
 	failure_count := 0
 	for {
@@ -58,26 +70,29 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 		case url_new := <-data:
 			id = url_new.Id
 			if url_new.Crawl_timeout != -1 {
+				crawl = url_new.Crawl_timeout
 				timeout = time.Duration(url_new.Crawl_timeout) * time.Second
 				client = httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
 			}
 			if url_new.Frequency != -1 {
-				ticker = time.NewTicker(time.Duration(url_new.Frequency) * time.Second)
+				frequency = url_new.Frequency
+				ticker = time.NewTicker(time.Duration(frequency) * time.Second)
 			}
 			if url_new.Failure_threshold != -1 {
 				threshold = url_new.Failure_threshold
 			}
 			failure_count = 0
-
+			url = db.UrlInfo{Url: website, Crawl_timeout: crawl, Frequency: frequency, Failure_count: 0, Status: "active", Failure_threshold: threshold}
+			url.ID = id
 		case t := <-ticker.C:
 			fmt.Printf("%s Pinged at %s\n", website, t)
 			res, err := client.Get(url.Url, nil)
 			if err != nil || res.Status != "200 OK" {
 				fmt.Printf("%s response failure\n", website)
 				failure_count++
-				dbUpdatefailure(id, failure_count)
+				dbUpdatefailure(url, failure_count)
 				if failure_count >= threshold {
-					_ = dbDeactivateurl(id)
+					_ = dbDeactivateurl(url)
 					fmt.Printf("Stoping monitor for %s\n", website)
 					return
 				}
@@ -107,7 +122,7 @@ func Posturl(m map[string]Channels) func(*gin.Context) {
 		mu.Unlock()
 		if err != nil {
 			c.JSON(200, gin.H{
-				"error": "url already exists",
+				"error": err,
 			})
 		} else {
 			id := record.ID
@@ -158,9 +173,8 @@ func Deleteurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 
 		id := c.Param("id")
-		mu.Lock()
-		err := dbDeleteurl(id)
-		mu.Unlock()
+		record, err := dbGeturl(id)
+		dbDeleteurl(record)
 		if err != nil {
 			c.String(400, "")
 		}
@@ -181,10 +195,19 @@ func Patchurl(m map[string]Channels) func(*gin.Context) {
 		frequency := string_to_int(c.PostForm("frequency"))
 		failure_threshold := string_to_int(c.PostForm("failure_threshold"))
 		input := db.Update{Id: id, Crawl_timeout: crawl_timeout, Frequency: frequency, Failure_threshold: failure_threshold}
-		mu.Lock()
-		record, err := dbUpdateurl(input)
-		mu.Unlock()
-		if err != nil {
+		var err1, err2, err3 error
+		record, err := dbGeturl(id)
+		if crawl_timeout != -1 {
+			record, err1 = dbUpdatecrawl(record, crawl_timeout)
+		}
+		if frequency != -1 {
+			record, err2 = dbUpdatefrequency(record, frequency)
+		}
+		if failure_threshold != -1 {
+			record, err3 = dbUpdatethreshold(record, failure_threshold)
+		}
+
+		if err != nil || err1 != nil || err2 != nil || err3 != nil {
 			c.JSON(500, gin.H{
 				"error": "Could not update database",
 			})
@@ -210,7 +233,8 @@ func Activateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		mu.Lock()
-		err := dbActivateurl(id)
+		rec, err := dbGeturl(id)
+		err = dbActivateurl(rec)
 		mu.Unlock()
 		if err != nil {
 			c.JSON(400, gin.H{
@@ -234,7 +258,8 @@ func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		mu.Lock()
-		err := dbDeactivateurl(id)
+		rec, err := dbGeturl(id)
+		err = dbDeactivateurl(rec)
 		mu.Unlock()
 		if err != nil {
 			c.JSON(400, gin.H{
@@ -254,9 +279,9 @@ func Deactivateurl(m map[string]Channels) func(*gin.Context) {
 }
 
 //handler that returns all active urls
-func Getactiveurls() []db.UrlInfo {
-	urls := c.Getactiveurls()
-	return urls
+func Getactiveurls() ([]db.UrlInfo, error) {
+	urls, err := c.Getactiveurls()
+	return urls, err
 }
 
 //makes connection to the database

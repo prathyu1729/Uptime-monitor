@@ -35,7 +35,7 @@ func performRequest(r http.Handler, method, path string, body io.Reader) *httpte
 }
 
 func TestDeactivateurl(t *testing.T) {
-	dbDeactivateurl = func(id string) error {
+	dbDeactivateurl = func(info db.UrlInfo) error {
 		return nil
 	}
 	router := server()
@@ -45,7 +45,7 @@ func TestDeactivateurl(t *testing.T) {
 }
 
 func TestActivateurl(t *testing.T) {
-	dbActivateurl = func(id string) error {
+	dbActivateurl = func(info db.UrlInfo) error {
 		return nil
 
 	}
@@ -63,8 +63,8 @@ func TestActivateurl(t *testing.T) {
 
 func TestDeleteurl(t *testing.T) {
 
-	dbDeleteurl = func(id string) error {
-		_ = id
+	dbDeleteurl = func(info db.UrlInfo) error {
+		//_ = id
 		return nil
 	}
 	router := server()
@@ -75,6 +75,7 @@ func TestDeleteurl(t *testing.T) {
 
 func TestPosturl(t *testing.T) {
 
+	//newsample()
 	dbInserturl = func(r db.UrlInfo) (db.UrlInfo, error) {
 		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
 		record.ID = "1"
@@ -117,14 +118,34 @@ func TestGeturlbyid(t *testing.T) {
 
 func TestPatchurl(t *testing.T) {
 
-	dbUpdateurl = func(input db.Update) (db.UrlInfo, error) {
-		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: input.Crawl_timeout, Frequency: input.Frequency, Failure_threshold: input.Failure_threshold, Status: "active", Failure_count: 0}
-		record.ID = input.Id
+	dbGeturl = func(i string) (db.UrlInfo, error) {
+		record := db.UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 15, Failure_threshold: 2, Status: "active", Failure_count: 0}
+		record.ID = i
+		return record, nil
+	}
+
+	dbUpdatecrawl = func(record db.UrlInfo, crawl int) (db.UrlInfo, error) {
+		record.Crawl_timeout = crawl
+		return record, nil
+	}
+
+	dbUpdatefrequency = func(record db.UrlInfo, f int) (db.UrlInfo, error) {
+		record.Frequency = f
+		return record, nil
+	}
+
+	dbUpdatefrequency = func(record db.UrlInfo, f int) (db.UrlInfo, error) {
+		record.Frequency = f
+		return record, nil
+	}
+
+	dbUpdatethreshold = func(record db.UrlInfo, t int) (db.UrlInfo, error) {
+		record.Failure_threshold = t
 		return record, nil
 	}
 
 	router := server()
-	content := strings.NewReader("crawl_timeout=10&frequency=15&failure_threshold=2;empty=&")
+	content := strings.NewReader("crawl_timeout=11&frequency=16&failure_threshold=3;empty=&")
 	w := performRequest(router, "PATCH", "/urls/2", content)
 	assert.Equal(t, http.StatusOK, w.Code)
 	var response db.UrlInfo
@@ -139,10 +160,10 @@ func TestPatchurl(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "2", id)
 	assert.Equal(t, "abc.com", url)
-	assert.Equal(t, 10, crawl_timeout)
-	assert.Equal(t, 15, frequency)
+	assert.Equal(t, 11, crawl_timeout)
+	assert.Equal(t, 16, frequency)
 	assert.Equal(t, "active", status)
 	assert.Equal(t, 0, failure_count)
-	assert.Equal(t, 2, failure_threshold)
+	assert.Equal(t, 3, failure_threshold)
 
 }

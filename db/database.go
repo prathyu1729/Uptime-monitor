@@ -10,13 +10,13 @@ import (
 )
 
 type Base struct {
-	ID        string `gorm:"type:uuid;primary_key;"`
+	ID        string `gorm:"type:char(36);primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt *time.Time `sql:"index"`
+	DeletedAt *time.Time //`gorm:"default:null"`
 }
 
-func (base *UrlInfo) BeforeCreate(scope *gorm.Scope) error {
+func (base *Base) BeforeCreate(scope *gorm.Scope) error {
 	uuid, err := uuid.NewV4()
 	uuids := uuid.String()
 	if err != nil {
@@ -28,13 +28,13 @@ func (base *UrlInfo) BeforeCreate(scope *gorm.Scope) error {
 var db *gorm.DB
 
 type UrlInfo struct {
-	ID                string `gorm:"type:char(36);primary_key;"`
-	Url               string
-	Crawl_timeout     int
-	Frequency         int
-	Failure_threshold int
-	Status            string
-	Failure_count     int
+	Base
+	Url               string `gorm:"unique;not null"`
+	Crawl_timeout     int    `gorm:"not null"`
+	Frequency         int    `gorm:"not null"`
+	Failure_threshold int    `gorm:"not null"`
+	Status            string `gorm:"not null"`
+	Failure_count     int    //`gorm:"unique;not null"`
 }
 
 type Update struct {
@@ -45,15 +45,18 @@ type Update struct {
 }
 
 type Dbinteraction interface {
-	Deleteurl(id string) error
-	Activateurl(id string) error
-	Deactivateurl(id string) error
-	Updateurl(input Update) (UrlInfo, error)
-	Updatefailure(id string, count int) error
+	Deleteurl(info UrlInfo) error
+	Activateurl(info UrlInfo) error
+	Deactivateurl(info UrlInfo) error
+	//Updateurl(input Update) (UrlInfo, error)
+	Updatefailure(info UrlInfo, count int) (UrlInfo, error)
 	Geturl(id string) (UrlInfo, error)
 	Getallurl() []UrlInfo
-	Getactiveurls() []UrlInfo
+	Getactiveurls() ([]UrlInfo, error)
 	Inserturl(record UrlInfo) (UrlInfo, error)
+	Updatecrawl(c UrlInfo, crawl int) (UrlInfo, error)
+	Updatefrequency(c UrlInfo, crawl int) (UrlInfo, error)
+	Updatethreshold(c UrlInfo, crawl int) (UrlInfo, error)
 	Connect() error
 }
 
@@ -61,39 +64,33 @@ type Caller struct {
 	Db *gorm.DB
 }
 
+//tested
 func (c *Caller) Geturl(id string) (UrlInfo, error) {
 	var info UrlInfo
 	err := c.Db.Where("id = ?", id).Find(&info).Error
 	return info, err
 }
 
-func (c *Caller) Deleteurl(id string) error {
-	var info UrlInfo
-	info, err := c.Geturl(id)
-	c.Db.Delete(&info)
-	return err
+//tested
+func (c *Caller) Deleteurl(info UrlInfo) error {
+	r := c.Db.Delete(&info)
+	return r.Error
+
 }
 
-func (c *Caller) Activateurl(id string) error {
-	var info UrlInfo
-	err := c.Db.Where("id = ?", id).Find(&info).Error
-	if err != nil {
-		return err
-	}
+//tested
+func (c *Caller) Activateurl(info UrlInfo) error {
+
 	if info.Status == "active" {
 		return errors.New("url already active")
 	}
 	c.Db.Model(&info).Update("Status", "active")
-	c.Db.Model(&info).Update("Failure_count", 0)
 	return nil
 }
 
-func (c *Caller) Deactivateurl(id string) error {
-	var info UrlInfo
-	err := c.Db.Where("id = ?", id).Find(&info).Error
-	if err != nil {
-		return err
-	}
+//tested
+func (c *Caller) Deactivateurl(info UrlInfo) error {
+
 	if info.Status == "inactive" {
 		return errors.New("url already inactive")
 	}
@@ -102,37 +99,31 @@ func (c *Caller) Deactivateurl(id string) error {
 
 }
 
-func (c *Caller) Updateurl(input Update) (UrlInfo, error) {
-	var info UrlInfo
-	id := input.Id
-
-	err := c.Db.Where("id = ?", id).Find(&info).Error
-	if err != nil {
-		return info, err
-	}
-	if input.Crawl_timeout != -1 {
-		c.Db.Model(&info).Update("Crawl_timeout", input.Crawl_timeout)
-	}
-	if input.Frequency != -1 {
-		c.Db.Model(&info).Update("Frequency", input.Frequency)
-	}
-	if input.Failure_threshold != -1 {
-		c.Db.Model(&info).Update("Failure_threshold", input.Failure_threshold)
-	}
-	c.Db.Model(&info).Update("Failure_count", 0)
-
-	return info, nil
+//tested
+func (c *Caller) Updatecrawl(record UrlInfo, crawl int) (UrlInfo, error) {
+	err := c.Db.Model(&record).Update("Crawl_timeout", crawl)
+	return record, err.Error
 
 }
 
-func (c *Caller) Updatefailure(id string, count int) error {
-	var info UrlInfo
-	err := c.Db.Where("id = ?", id).Find(&info).Error
-	if err != nil {
-		return err
-	}
-	c.Db.Model(&info).Update("Failure_count", count)
-	return nil
+//tested
+func (c *Caller) Updatefrequency(record UrlInfo, f int) (UrlInfo, error) {
+	err := c.Db.Model(&record).Update("Frequency", f)
+	return record, err.Error
+
+}
+
+//tested
+func (c *Caller) Updatethreshold(record UrlInfo, t int) (UrlInfo, error) {
+	err := c.Db.Model(&record).Update("Failure_threshold", t)
+	return record, err.Error
+
+}
+
+//tested
+func (c *Caller) Updatefailure(info UrlInfo, count int) (UrlInfo, error) {
+	err := c.Db.Model(&info).Update("Failure_count", count)
+	return info, err.Error
 
 }
 
@@ -142,20 +133,17 @@ func (c *Caller) Getallurl() []UrlInfo {
 	return urls
 }
 
-func (c *Caller) Getactiveurls() []UrlInfo {
+//tested
+func (c *Caller) Getactiveurls() ([]UrlInfo, error) {
 	var urls []UrlInfo
-	c.Db.Find(&urls, "status = ?", "active")
-	return urls
+	er := c.Db.Find(&urls, "status = ?", "active")
+	return urls, er.Error
 }
 
+//tested
 func (c *Caller) Inserturl(record UrlInfo) (UrlInfo, error) {
-	var info UrlInfo
-	err := c.Db.Where("url = ?", record.Url).Find(&info).Error
-	if err != nil {
-		c.Db.Create(&record)
-		return record, nil
-	}
-	return info, errors.New("url already exists")
+	er := c.Db.Create(&record)
+	return record, er.Error
 
 }
 

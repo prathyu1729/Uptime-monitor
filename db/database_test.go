@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	//"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 type Suite struct {
@@ -58,7 +59,7 @@ func (s *Suite) TestGeturl() {
 	)
 
 	s.mock.ExpectQuery(regexp.QuoteMeta(
-		"SELECT * FROM `url_infos` WHERE (id = ?)")).
+		"SELECT * FROM `url_infos` WHERE `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
 			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
@@ -68,6 +69,8 @@ func (s *Suite) TestGeturl() {
 	require.NoError(s.T(), err)
 	require.Nil(s.T(), deep.Equal(Url, res.Url))
 }
+
+type AnyTime struct{}
 
 func (s *Suite) TestPosturl() {
 	var (
@@ -78,93 +81,188 @@ func (s *Suite) TestPosturl() {
 		Failure_threshold = 3
 		Status            = "active"
 		Failure_count     = 0
+		//null              = "null"
 	)
-
-	s.mock.ExpectQuery(regexp.QuoteMeta(
-		"SELECT * FROM `url_infos` WHERE (id = ?)")).
-		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
-
-	res, err := s.interactor.Geturl(id)
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"INSERT INTO `url_infos`")).
+		WithArgs(id, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.mock.ExpectCommit()
+	res, err := s.interactor.Inserturl(record)
 
 	require.NoError(s.T(), err)
 	require.Nil(s.T(), deep.Equal(Url, res.Url))
 
 }
 
-// func (s *Suite) TestActivateurl() {
-// 	var (
-// 		id                = int(1)
-// 		Url               = "abc.com"
-// 		Crawl_timeout     = 10
-// 		Frequency         = 20
-// 		Failure_threshold = 3
-// 		Status            = "inactive"
-// 		Failure_count     = 0
-// 	)
-// 	//s.SetupSuite()
-// 	s.mock.MatchExpectationsInOrder(false)
-// 	s.mock.ExpectBegin()
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"SELECT * FROM `url_infos` WHERE  `url_infos`.`deleted_at` IS NULL AND ((id = ?))")).
-// 		WithArgs(id).
-// 		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
-// 	s.mock.ExpectCommit()
+func (s *Suite) TestDeleteurl() {
 
-// 	s.mock.ExpectBegin()
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"UPDATE `url_infos` set status=`active' WHERE ((id = ?)) ")).
-// 		WithArgs(id)
-// 	s.mock.ExpectCommit()
+	var (
+		id = "1"
+	)
 
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"UPDATE `url_infos` set failure_count=0 WHERE ((id = ?)) ")).
-// 		WithArgs(id)
-// 	s.mock.ExpectCommit()
-// 	//WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 	//AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `deleted_at`=? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-// 	err := s.interactor.Activateurl(id)
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	_, err := s.interactor.Deleteurl(record)
 
-// 	require.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
-// }
+}
 
-// func (s *Suite) TestDeleteurl() {
+func (s *Suite) TestActivateurl() {
+	var (
+		id     = "1"
+		status = "active"
+	)
 
-// 	var (
-// 		id                = "1"
-// 		Url               = "abc.com"
-// 		Crawl_timeout     = 10
-// 		Frequency         = 20
-// 		Failure_threshold = 3
-// 		Status            = "active"
-// 		Failure_count     = 0
-// 	)
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `status` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(status, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-// 	//s.SetupSuite()
-// 	rows := sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 		AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count)
-// 	rows1 := sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 		AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count)
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "inactive", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Activateurl(record)
 
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"SELECT * FROM `url_infos` WHERE  (id = ?)")).
-// 		WithArgs(id).WillReturnRows(rows)
+	require.NoError(s.T(), err)
+}
 
-// 	//AddRow(id, Url, Crawl_timeout, Frequency, Failure_t
+func (s *Suite) TestDectivateurl() {
+	var (
+		id     = "1"
+		status = "inactive"
+	)
 
-// 	s.mock.ExpectQuery(regexp.QuoteMeta(
-// 		"DELETE FROM `url_infos` WHERE (id = ?)")).
-// 		WithArgs(id).WillReturnRows(rows1)
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `status` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(status, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-// 	//WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
-// 	//AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Deactivateurl(record)
 
-// 	err := s.interactor.Deleteurl(id)
+	require.NoError(s.T(), err)
+}
 
-// 	require.NoError(s.T(), err)
+func (s *Suite) TestGetactiveurls() {
+	var (
+		id                = "1"
+		status            = "active"
+		Url               = "abc.com"
+		Crawl_timeout     = 10
+		Frequency         = 20
+		Failure_threshold = 3
+		Status            = "active"
+		Failure_count     = 0
+	)
 
-// }
+	s.mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT * FROM `url_infos` WHERE `url_infos`.`deleted_at` IS NULL AND ((status = ?))")).
+		WithArgs(status).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "url", "crawl_timeout", "frequency", "failure_threshold", "status", "failure_count"}).
+			AddRow(id, Url, Crawl_timeout, Frequency, Failure_threshold, Status, Failure_count))
+
+	urls, err := s.interactor.Getactiveurls()
+	_ = urls
+
+	require.NoError(s.T(), err)
+}
+
+func (s *Suite) TestUpdatecrawl() {
+
+	var (
+		id    = "1"
+		crawl = 20
+	)
+
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `crawl_timeout` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(crawl, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Updatecrawl(record, crawl)
+
+	require.NoError(s.T(), err)
+}
+
+func (s *Suite) TestUpdatefrequency() {
+
+	var (
+		id = "1"
+		f  = 30
+	)
+
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `frequency` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(f, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Updatefrequency(record, f)
+
+	require.NoError(s.T(), err)
+}
+
+func (s *Suite) TestUpdatethreshold() {
+
+	var (
+		id = "1"
+		t  = 5
+	)
+
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `failure_threshold` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(t, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Updatethreshold(record, t)
+
+	require.NoError(s.T(), err)
+}
+
+func (s *Suite) TestUpdatefailure() {
+
+	var (
+		id = "1"
+		f  = 6
+	)
+
+	s.mock.ExpectBegin()
+	s.mock.ExpectExec(regexp.QuoteMeta(
+		"UPDATE `url_infos` SET `failure_count` = ?, `updated_at` = ? WHERE `url_infos`.`deleted_at` IS NULL AND `url_infos`.`id` = ?")).
+		WithArgs(6, sqlmock.AnyArg(), id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	s.mock.ExpectCommit()
+	record := UrlInfo{Url: "abc.com", Crawl_timeout: 10, Frequency: 20, Failure_threshold: 3, Status: "active", Failure_count: 0}
+	record.ID = "1"
+	err := s.interactor.Updatefailure(record, f)
+
+	require.NoError(s.T(), err)
+}

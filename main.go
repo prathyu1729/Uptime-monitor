@@ -91,8 +91,8 @@ func main() {
 			if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
 				return &User{
 					UserName:  userID,
-					LastName:  "N P",
-					FirstName: "Prathyush",
+					LastName:  "Bo-Yi",
+					FirstName: "Wu",
 				}, nil
 			}
 
@@ -156,7 +156,7 @@ func main() {
 	}
 
 	//checking if data already exists in db
-	urls := handler.Getactiveurls()
+	urls, _ := handler.Getactiveurls()
 	for _, url := range urls {
 		id := url.ID
 		m[id] = handler.Channels{Quit: make(chan bool, 1), Data: make(chan db.Update, 1)}
