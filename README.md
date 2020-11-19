@@ -1,5 +1,5 @@
 # Uptime-monitor
-Uptime monitor is an application which monitors the uptime of systems.The application expects a url of your website along with monitoring parameters. The inbound urls will be monitored continuosly by the application.
+Uptime monitor is a application which monitors the uptime of systems.The application expects a url of your website along with monitoring parameters. The inbound urls will be monitored continuosly by the application.
 
 # Setup local environment 
 * Install go on your machine https://golang.org/doc/install
