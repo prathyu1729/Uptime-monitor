@@ -34,7 +34,7 @@ type UrlInfo struct {
 	Frequency         int    `gorm:"not null"`
 	Failure_threshold int    `gorm:"not null"`
 	Status            string `gorm:"not null"`
-	Failure_count     int    //`gorm:"unique;not null"`
+	Failure_count     int    //`gorm:"unique;not null"
 }
 
 type Update struct {
