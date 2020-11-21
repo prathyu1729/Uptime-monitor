@@ -106,7 +106,7 @@ func Monitor(url db.UrlInfo, quit chan bool, data chan db.Update) {
 
 }
 
-//function to handle inserting new entries to the db
+//function to handle inserting new entries to the d
 func Posturl(m map[string]Channels) func(*gin.Context) {
 
 	return func(c *gin.Context) {
